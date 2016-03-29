@@ -11,7 +11,7 @@
 import logging
 from logging.config import fileConfig
 logger = logging.getLogger()
-fileConfig('logger.conf', defaults={'logfilename': 'Tri-Zone.log'})
+fileConfig('I2C_controller/logger.conf', defaults={'logfilename': 'I2C_controller/I2C.log'})
 
 import sys
 import time
@@ -24,8 +24,7 @@ class fakemodule(object):
 sys.modules["fakemodule"] = fakemodule
 
 # smbus protocol (a I2C subset of features)
-#import smbus
-import smbus #debugging
+import smbus
 
 # global variables
 # MCP23017 register address with names
@@ -40,13 +39,13 @@ register_names = {0x00: "IODIRA",   0x01: "IODIRB",    0x02: "IPOLA",   0x03: "I
 register_addresses = dict([(name, address) for address, name in register_names.items()])  # reverse register_names
 register_groups = [name[:-1] for name in register_names.values()[::2]]  # register types (uses register_names)
 
-active_busses = {}  # reusing busses instead of creating new ones, every created bus shoud be added.
-active_devices = {}  # devices (e.g. 0x20 : MCP23017())
+active_busses = {}  # reusing busses instead of creating new ones, every created bus should be added.
+active_devices = {}  # devices (e.g. {0x20 : MCP23017()})
 variables = {'on': 255, 'off': 0, 'input': 255, 'output': 0}  # these are accepted write/read values
 
 
 #tools
-def repr_binary(data):  # returns data as a string of 8 bits
+def repr_binary(data):  # returns data as a string displaying 8 bits
     if type(data) == int:
         return str(format(data, '08b'))
     else:

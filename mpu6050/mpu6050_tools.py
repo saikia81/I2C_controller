@@ -6,20 +6,21 @@ import itertools as itert
 from time import sleep, time
 import time
 
-import I2C_controller
-from I2C_controller import register_lookup
-from I2C_controller import data_lookup
-from I2C_controller import register_addresses
-from I2C_controller import variables
-from I2C_controller import device_factory
-from I2C_controller import register_names
-from I2C_controller import repr_binary
-from I2C_controller import find_int
+# todo: fix dependencies, move members from MPU6050_controller.py to here
+import mpu6050_controller
+from mpu6050_controller import register_lookup
+from mpu6050_controller import data_lookup
+from mpu6050_controller import register_addresses
+from mpu6050_controller import variables
+from mpu6050_controller import device_factory
+from mpu6050_controller import register_names
+from mpu6050_controller import repr_binary
+from mpu6050_controller import find_int
 
 try:
     from watchdog import Watchdog
 except ImportError:
-    print("[-]warning: no watchdog found")
+    print("[-]  warning: no watchdog found")
 
 # global variables
 actions = {}  # filled after function declarations
@@ -115,20 +116,20 @@ def parse_command(command):
     global last_command
     args = list()
     if type(command) != dict:
-        print("[-]command type invalid, must be dict, instead is: " + repr(type(command)))
+        print("[-]  command type invalid, must be dict, instead is: " + repr(type(command)))
         return
     elif len(command) == 0:
         return
 
     action = command['action']
     if action in modes.keys():
-        print("[+]mode activated")
+        print("[+]  mode activated")
         modes[action][0]()  # enter mode: 'action' in the global modes list
         return
     elif action in actions.keys():
         var_names = actions[action][-1]
         if var_names is not None:
-            if type(var_names) == str: var_names = (var_names,)
+            if type(var_names) == str: var_names = (var_names,) #comma makes it a tuple, (sadly)
             args.extend([command[var] for var in var_names])  # variables sorted for function call
 
         parameters_list = list(map(list, itert.product(*args)))  # build list of parameter lists that can be run
@@ -138,14 +139,14 @@ def parse_command(command):
         for parameters in parameters_list:
             try:
                 actions[action][0](*parameters)
-                print("[+]command: " + repr(parameters))
-                if command['action'] not in ('redo', 'repeat'):  # make sure no recursion happens
+                print("[+]  command: " + repr(parameters))
+                if command['action'] not in ('redo', 'repeat'):  # make sure no 'redo' recursion happens
                     last_command = command
             except IOError as ex:
-                print("[-]IO failed: '" + repr(parameters) + "'")  # uses copy of args for output
+                print("[-]  IO failed: '" + repr(parameters) + "'")  # uses copy of args for output
                 print(ex.message)
     else:
-        print("[-]no action: '" + repr(args) + "'")  # uses copy of args for output
+        print("[-]  no action: '" + repr(args) + "'")  # uses copy of args for output
 
 
 # modes
@@ -194,9 +195,20 @@ def write_byte(device_addr, reg, data):
 
 def read_byte(device_addr, reg):
     device = device_factory(device_addr)
-    reg = register_lookup(reg)
+    try:
+        reg = register_lookup(reg)
+    except ValueError:
+        if raw_input("[!] the register '{}' could not be found! ingore warning [N/y]".format(reg)).lower() in ['','n']:
+            return
+
     data = device.read_byte(reg)
-    print("[+]read: " + register_names[reg] + ": " + repr_binary(data))
+
+    try:
+        reg = register_names[reg]
+    except KeyError:
+        print("[!]  warning: register {} is unknown".format(reg))
+    print("[+]  read: {}: {}".format(reg,repr_binary(data)))
+
     return data
 
 
@@ -282,6 +294,7 @@ def turn_on_address(device_addrss, column, row):
     return
 
 def listen(device_address):
+    if raw_input("[!] warning this will write to your device! continue [Y/n]").lower() not in ['y', '']: return
     device = device_factory(device_address)
     change = False
     drive = 'B'
@@ -294,7 +307,7 @@ def listen(device_address):
 
     while True:
         if change:
-            print("[+] input detected: row: {}| column: {}".format(repr_binary(row_data), repr_binary(column_data)))
+            print("[+]  input detected: row: {}| column: {}".format(repr_binary(row_data), repr_binary(column_data)))
             change = False
         column_data = device.read_port(drive)
         row_data = device.read_port(inp)
@@ -307,20 +320,21 @@ def listen(device_address):
 def watchdog(device_address):
     Watchdog(int(device_address)).start()
 
-def speed_test(device_address):
+def speed_test(device_address, reg):
     device = device_factory(device_address)
     start_time = time.time()
     for i in xrange(256):
-        device.read_port('a')
+        device.read_reg(reg)
     end_time = time.time()
 
     delta_time = end_time - start_time
-    print("Read port 'a' 256 times in: {}ms".format(delta_time*1000))
+    print("Read reg '{}': 256 times in: {}ms".format(reg, delta_time*1000))
 
 
 # add functions and variables (to extend toolset)
-# command structure: '[mode_name] [variable_names]'
+# command structure: '[mode_name] [variable_names]
 # when no variable names are specified the default is None
+# todo: variables should be able to be added here as constants ('device_address', {'reg': 0x12})
 # todo: Discover how None in a tuple interpretation works
 modes['test_mode'] = (test_mode, (None))
 modes['device_mode'] = (test_mode, (None))
@@ -340,7 +354,7 @@ actions['list'] = (list_commands, (None))
 actions['find'] = (find_devices, (None))
 actions['address'] = (turn_on_address, ('device_addrss', 'column', 'row'))
 actions['watchdog'] = (watchdog, ('device_address'))
-actions['speed_test'] = (speed_test, ('device_address'))
+actions['speed_test'] = (speed_test, ('device_address', 'reg'))
 
 # synonyms
 actions['write'] = actions['w']
@@ -370,5 +384,5 @@ if __name__ == '__main__':
 
     # debug
     print("++++++ debug ++++++")
-    for device in I2C_controller.active_devices.values():
+    for device in mpu6050_controller.active_devices.values():
         print(device)
