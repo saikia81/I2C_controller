@@ -1,17 +1,16 @@
 #!/usr/bin/python2
 # coding=utf-8
 
-import sys
 import itertools as itert
-from time import sleep, time
+import sys
 import time
+from time import sleep
 
 # todo: fix dependencies, move members from MPU6050_controller.py to here
 import mpu6050_controller
 from mpu6050_controller import register_lookup
 from mpu6050_controller import data_lookup
 from mpu6050_controller import register_addresses
-from mpu6050_controller import variables
 from mpu6050_controller import device_factory
 from mpu6050_controller import register_names
 from mpu6050_controller import repr_binary
@@ -257,10 +256,10 @@ def list_commands():
     print("-- command list --")
     print("# modes")
     for mode in modes.keys():
-        print mode
+        print(mode)
     print("# actions")
     for action in actions.keys():
-        print action
+        print(action)
     print("-----------------")
 
 
